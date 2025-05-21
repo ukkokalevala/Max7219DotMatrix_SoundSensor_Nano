@@ -1,0 +1,58 @@
+#include <LedControl.h> // Controls the MAX7219 8×8 LED matrix.
+
+// MAX7219 pins: DIN, CLK, CS
+LedControl lc = LedControl(11, 13, 10, 1);
+
+const int soundPin = A0;  // Sound sensor analog pin
+// Creates a radial spinner effect by displaying symmetrical arms.
+//It cycles through these patterns to simulate expanding and collapsing arms.
+//0b00011000 = lights in the middle columns (columns 3 and 4).
+//0b10000001 = lights outer edges (columns 0 and 7).
+byte spinnerFrames[8] = {
+  0b00011000, // Up
+  0b00100100,
+  0b01000010,
+  0b10000001,
+  0b01000010,
+  0b00100100,
+  0b00011000,
+  0b00000000  // Off frame
+};
+
+int frameIndex = 0;
+unsigned long lastUpdate = 0;
+int delayTime = 100;
+
+void setup() {
+  lc.shutdown(0, false);    // Wake up display
+  lc.setIntensity(0, 8);    // Brightness: 0–15
+  lc.clearDisplay(0);       // Clear matrix
+}
+
+void loop() {
+  // Read sound level
+  int soundLevel = analogRead(soundPin); // reads current sound level
+  int mappedDelay = map(soundLevel, 0, 1023, 200, 30); // Faster spin with louder sound
+  delayTime = constrain(mappedDelay, 30, 200);
+
+  // Time-based spinner update
+  if (millis() - lastUpdate > delayTime) {
+    drawSpinner(frameIndex);
+    frameIndex = (frameIndex + 1) % 8;
+    lastUpdate = millis();
+  }
+}
+// A list of 8 predefined (x, y) positions simulates circular motion.
+void drawSpinner(int pos) {
+  lc.clearDisplay(0);
+
+  for (int row = 0; row < 8; row++) {
+    byte pattern = rotateByte(spinnerFrames[pos], row);
+    lc.setRow(0, row, pattern); // clears the previous frame.
+  }
+}
+
+// Rotate the spinner pattern to simulate rotation
+byte rotateByte(byte b, int amount) {
+  return (b << amount) | (b >> (8 - amount));
+}
